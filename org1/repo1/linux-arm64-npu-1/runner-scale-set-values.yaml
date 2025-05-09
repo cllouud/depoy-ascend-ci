@@ -1,0 +1,78 @@
+githubConfigUrl: https://github.com/<ORGANIZATION>/<REPOSITORY>
+
+githubConfigSecret:
+  github_token: <SECRET-REPO-TOKEN>
+
+template:
+  spec:
+    serviceAccountName: runner-service-account
+    initContainers:
+      - name: copy-origin-file
+        image: ghcr.io/actions/actions-runner:latest
+        command: ["sh", "-c", "cp -a /home/runner/k8s/. /app-data/  && chown -R 1001:1001 /app-data"]
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: app-data
+          mountPath: /app-data
+      - name: copy-pvc-file
+        image: busybox
+        command: ["sh", "-c", "cp -f /shared-data/index.js /app-data/index.js  && chown -R 1001:1001 /app-data"]
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: custom-index
+          mountPath: /shared-data
+        - name: app-data
+          mountPath: /app-data
+    containers:
+      - name: runner
+        image: ghcr.io/actions/actions-runner:latest
+        command: ["/home/runner/run.sh"]
+        env:
+          - name: ACTIONS_RUNNER_CONTAINER_HOOKS
+            value: /home/runner/k8s/index.js
+          - name: ACTIONS_RUNNER_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
+            value: "false"
+          - name: ACTIONS_RUNNER_CONTAINER_HOOK_TEMPLATE
+            value: /home/runner/pod-templates/default.yaml
+          - name: ACTIONS_RUNNER_USE_KUBE_SCHEDULER # 使用 kubectl 调度器
+            value: "true"
+          - name: ACTIONS_RUNNER_PREPARE_JOB_TIMEOUT_SECONDS # container job pod 在 pending 状态下的等待时间
+            value: "3600"
+        volumeMounts:
+          - name: work
+            mountPath: /home/runner/_work
+          - name: pod-templates
+            mountPath: /home/runner/pod-templates
+            readOnly: true
+          - name: shared-volume
+            mountPath: /shared-data
+          - name: app-data
+            mountPath: /home/runner/k8s
+    volumes:
+      - name: work
+        ephemeral:
+          volumeClaimTemplate:
+            spec:
+              accessModes: ["ReadWriteOnce"]
+              storageClassName: "csi-disk"
+              resources:
+                requests:
+                  storage: 32Gi
+      - name: pod-templates
+        configMap:
+          name: pod-template-npu-1
+      - name: shared-volume
+        persistentVolumeClaim:
+          claimName: ascendci-<ORGANIZATION>-<REPOSITORY>
+      - name: custom-index
+        persistentVolumeClaim:
+          claimName: custom-index
+      - name: app-data
+        emptyDir: {}
+

@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-template-npu-1
+  namespace: <ORGANIZATION>
+data:
+  default.yaml: |
+    ---
+    apiVersion: v1
+    kind: PodTemplate
+    metadata:
+      annotations:
+        annotated-by: "extension"
+      labels:
+        labeled-by: "extension"
+    spec:
+      containers:
+        - name: $job
+          resources:
+            limits:
+              cpu: "23"
+              huawei.com/ascend-1980: "1"
+              memory: 64Gi
+            requests:
+              cpu: "23"
+              huawei.com/ascend-1980: "1"
+              memory: 32Gi
+          volumeMounts:
+            - name: shared-volume
+              mountPath: /shared-data
+            - name: check-npu
+              mountPath: /check-npu
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    # 配置github代理
+                    cat <<EOF >> /root/.gitconfig
+                    [url "https://gh-proxy.test.osinfra.cn/https://github.com/"]
+                        insteadOf = https://github.com/
+                    EOF
+      volumes:
+        - name: shared-volume
+          persistentVolumeClaim:
+            claimName: ascendci-<ORGANIZATION>-<REPOSITORY>
+        - name: check-npu
+          configMap:
+            name: check-npu

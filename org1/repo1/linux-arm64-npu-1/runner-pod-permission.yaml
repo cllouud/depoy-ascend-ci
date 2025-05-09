@@ -1,0 +1,48 @@
+---
+# Source: gha-runner-scale-set/templates/kube_mode_serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: runner-service-account
+  namespace: <ORGANIZATION>
+
+---
+# Source: gha-runner-scale-set/templates/kube_mode_role.yaml
+# default permission for runner pod service account in kubernetes mode (container hook)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: runner-role
+  namespace: <ORGANIZATION>
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["get", "create"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "create", "delete"]
+---
+# Source: gha-runner-scale-set/templates/kube_mode_role_binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: runner-rolebinding
+  namespace: <ORGANIZATION>
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: runner-role
+subjects:
+  - kind: ServiceAccount
+    name: runner-service-account
+    namespace: <ORGANIZATION>
+---

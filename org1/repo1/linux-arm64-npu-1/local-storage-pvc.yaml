@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    everest.io/path: /ascendci-<ORGANIZATION>-<REPOSITORY> # 对应/namespace name/<自定义子目录名>, 同一个ns相同功能的pod的数据都放在此子目录下;
+    everest.io/reclaim-policy: retain-volume-only  # 删除pvc时，pv同步被删除，但/namespace name/<自定义子目录名>保留
+    everest.io/sfsturbo-share-id: <SECRET-SFS-ID>  # 不变
+    everest.io/volume-as: absolute-path # 不变
+    pvc-can-cleanup: 'true' # 使用此pvc的pod被删除后，此pvc也被删除
+  # finalizers:
+  # - kubernetes.io/pvc-protection
+  name: ascendci-<ORGANIZATION>-<REPOSITORY>  # 建自定义子目录名同名；多个相同功能pod 需要使用同一个共享卷时，定义和使用同一个pvc name
+  namespace: <ORGANIZATION> # 对应每个namespace name
+spec:
+  accessModes:
+  - ReadWriteMany # 不变
+  resources:
+    requests:
+      storage: xxxGi # 自定义，不建议过大，否则文件系统无法提供对应存储空间
+  storageClassName: csi-sfsturbo  # 不变
